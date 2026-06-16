@@ -6,6 +6,12 @@ I run programs for SaaS and fintech teams, and I ship the software too. PM by tr
 
 5+ years across Project Management, Business Analysis, and Scrum Master roles. Today I lead delivery for US credit-union clients on Salesforce-integrated banking apps, with zero-downtime production rollouts held to banking-regulatory expectations.
 
+### Featured project: jira-pm-mcp
+
+A Jira MCP server built for project managers, not developers. You ask your AI assistant how a sprint is doing and it answers like a delivery lead: sprint health with a verdict, burndown, velocity, an auto-generated standup, severity-ranked blockers, and a stakeholder-ready weekly status note. Works with any MCP client on any model, with no AI API key needed. Zero-config demo mode, so you can try it in seconds.
+
+[GitHub](https://github.com/sathvic-kollu/jira-pm-mcp) &middot; [npm](https://www.npmjs.com/package/jira-pm-mcp) &middot; `npx jira-pm-mcp`
+
 ### What I do
 
 - **Run delivery** for SaaS and fintech teams: sprint planning, backlog refinement, retrospectives, stakeholder communication, risk management, and release coordination.
