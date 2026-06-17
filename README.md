@@ -6,11 +6,15 @@ I run programs for SaaS and fintech teams, and I ship the software too. PM by tr
 
 5+ years across Project Management, Business Analysis, and Scrum Master roles. Today I lead delivery for US credit-union clients on Salesforce-integrated banking apps, with zero-downtime production rollouts held to banking-regulatory expectations.
 
-### Featured project: jira-pm-mcp
+### Featured projects
 
-A Jira MCP server built for project managers, not developers. You ask your AI assistant how a sprint is doing and it answers like a delivery lead: sprint health with a verdict, burndown, velocity, an auto-generated standup, severity-ranked blockers, and a stakeholder-ready weekly status note. Works with any MCP client on any model, with no AI API key needed. Zero-config demo mode, so you can try it in seconds.
-
+**[jira-pm-mcp](https://github.com/sathvic-kollu/jira-pm-mcp):** a Jira MCP server for project managers, not developers. Ask how a sprint is doing and get a delivery lead's read: sprint health with a verdict, burndown, velocity, an auto-generated standup, severity-ranked blockers, and a stakeholder-ready weekly status note.
 [GitHub](https://github.com/sathvic-kollu/jira-pm-mcp) &middot; [npm](https://www.npmjs.com/package/jira-pm-mcp) &middot; `npx jira-pm-mcp`
+
+**[standup-mcp](https://github.com/sathvic-kollu/standup-mcp):** generate your daily standup from real activity across GitHub, Jira, Linear, and Slack. Ask "what should I say at standup today?" and get Yesterday / Today / Blockers grouped by work item, with blockers detected on their own. Local, read-only, model-agnostic.
+[GitHub](https://github.com/sathvic-kollu/standup-mcp) &middot; [npm](https://www.npmjs.com/package/standup-mcp) &middot; `npx standup-mcp`
+
+Both work with any MCP client on any model, need no AI API key, and ship a zero-config demo mode.
 
 ### What I do
 
