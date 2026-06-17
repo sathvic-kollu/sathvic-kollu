@@ -14,7 +14,10 @@ I run programs for SaaS and fintech teams, and I ship the software too. PM by tr
 **[standup-mcp](https://github.com/sathvic-kollu/standup-mcp):** generate your daily standup from real activity across GitHub, Jira, Linear, and Slack. Ask "what should I say at standup today?" and get Yesterday / Today / Blockers grouped by work item, with blockers detected on their own. Local, read-only, model-agnostic.
 [GitHub](https://github.com/sathvic-kollu/standup-mcp) &middot; [npm](https://www.npmjs.com/package/standup-mcp) &middot; `npx standup-mcp`
 
-Both work with any MCP client on any model, need no AI API key, and ship a zero-config demo mode.
+**[retro-mcp](https://github.com/sathvic-kollu/retro-mcp):** a data-grounded sprint retrospective from your Jira, GitHub, and Slack activity. What went well, what didn't, and action items, every line backed by a metric, ticket, PR, or thread, with recurring themes flagged. Blameless by design.
+[GitHub](https://github.com/sathvic-kollu/retro-mcp) &middot; [npm](https://www.npmjs.com/package/retro-mcp) &middot; `npx retro-mcp`
+
+All three work with any MCP client on any model, need no AI API key, and ship a zero-config demo mode.
 
 ### What I do
 
