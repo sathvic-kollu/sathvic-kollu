@@ -13,7 +13,7 @@ policy explains what we collect, why, and the choices you have.
 ## Who the app is for
 
 A parent or guardian sets up a family and invites their children and other guardians with a
-one-time code. The parent is responsible for the child's use of the app and gives consent on the
+short invite code that expires after 24 hours. The parent is responsible for the child's use of the app and gives consent on the
 child's behalf. Children can always see what is shared about them, see when a parent looked, and
 pause sharing.
 
@@ -28,6 +28,7 @@ pause sharing.
 | Check-in messages, tasks | Members | Family communication | Family members |
 | Device status: battery level, whether location/notification permissions are on, app version | Child devices | Warn parents when sharing has stopped working | Family parents |
 | A random account identifier and push-notification token | Every device | Sign-in without email or password; delivering alerts | Our service providers only (below) |
+| Crash reports: device model, OS version, app version and the technical details of the crash | Every device | Finding and fixing crashes | Our service providers only (below). Crash reports contain no location, names or messages. |
 
 We do **not** collect contacts, messages, photos, browsing history, app usage or microphone audio.
 We do not use advertising IDs, show ads, sell data, or share data with data brokers or advertisers.
@@ -35,7 +36,7 @@ We do not use advertising IDs, show ads, sell data, or share data with data brok
 ## Service providers
 
 We store data with Google Firebase (Cloud Firestore, Authentication, Cloud Messaging, Cloud
-Functions), operated by Google LLC, in [REGION, e.g. europe-west1]. Map images are loaded from
+Functions, Crashlytics, App Check), operated by Google LLC, in [REGION, e.g. europe-west1]. Map images are loaded from
 [MAP PROVIDER, e.g. MapTiler]; requests to it include the map area being viewed but no account information.
 
 ## How long we keep data
@@ -51,7 +52,7 @@ Functions), operated by Google LLC, in [REGION, e.g. europe-west1]. Map images a
 - **Delete your account**: in the app, Settings → Delete my account (parents) or
   ⋮ → Delete my data and leave (children). A child's location history, check-ins, alerts and
   profile are deleted immediately. When the last parent deletes their account, the whole family's
-  data is deleted. You can also request deletion at [DELETION PAGE URL] or by emailing [SUPPORT EMAIL].
+  data is deleted. You can also request deletion at [our deletion page](/delete-account) or by emailing [SUPPORT EMAIL].
 - Depending on where you live (for example under the GDPR, UK GDPR or CCPA/CPRA), you may have rights
   to access, correct, export or delete your data, or object to processing. Contact [SUPPORT EMAIL].
 

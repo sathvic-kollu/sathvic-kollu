@@ -6,7 +6,7 @@ import {logger} from "firebase-functions";
 import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import {HttpsError, onCall} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
-import {Alert, decideDelivery, digestSummary, isStale, Settings, windowContains, localClock} from "./policy";
+import {Alert, decideDelivery, digestSummary, familyZone, isStale, localClock, Settings, windowContains} from "./policy";
 
 initializeApp();
 const db = getFirestore();
@@ -14,6 +14,7 @@ const HISTORY_DAYS = 30;
 
 interface FamilyDoc {
   settings?: Settings;
+  tz?: string;
   tzOffsetMinutes?: number;
 }
 
@@ -77,7 +78,7 @@ export const onAlertCreated = onDocumentCreated("families/{familyId}/alerts/{ale
   const zone = alert.zoneId ?
     (await db.doc(`families/${familyId}/zones/${alert.zoneId}`).get()).data() :
     undefined;
-  const delivery = decideDelivery(alert, family.settings ?? {}, family.tzOffsetMinutes ?? 0, zone?.window);
+  const delivery = decideDelivery(alert, family.settings ?? {}, familyZone(family), zone?.window);
   if (delivery === "now") {
     await notifyParents(familyId, title(alert.type), alert.message, Boolean(alert.urgent));
   } else if (delivery === "digest") {
@@ -123,6 +124,15 @@ export const checkStalePhones = onSchedule("every 10 minutes", async () => {
           urgent: true,
         });
         await c.ref.update({staleAlerted: true});
+        // Nudge the child's phone too: after a reboot or force-stop, opening
+        // the app is all it takes to resume sharing.
+        await send(await tokensFor(f.id, (_, id) => id === c.id), {
+          notification: {
+            title: "Location sharing stopped",
+            body: "Tap to open Family Locator and turn it back on. Your family was told it stopped.",
+          },
+          android: {priority: "high", notification: {channelId: "alerts"}},
+        });
       } else if (!stale && child.staleAlerted) {
         await c.ref.update({staleAlerted: false});
       }
@@ -130,11 +140,11 @@ export const checkStalePhones = onSchedule("every 10 minutes", async () => {
 
     // Quiet hours over? Send what was held as one notification.
     const quiet = family.settings?.quietHours;
-    if (quiet && windowContains(quiet, localClock(now, family.tzOffsetMinutes ?? 0))) continue;
+    if (quiet && windowContains(quiet, localClock(now, familyZone(family)))) continue;
     const held = await f.ref.collection("digest").get();
     if (held.empty) continue;
     const alerts = held.docs.map((d) => d.data() as Alert);
-    await notifyParents(f.id, "While you were in quiet hours", digestSummary(alerts, family.tzOffsetMinutes ?? 0), false);
+    await notifyParents(f.id, "While you were in quiet hours", digestSummary(alerts, familyZone(family)), false);
     const batch = db.batch();
     held.docs.forEach((d) => batch.delete(d.ref));
     await batch.commit();

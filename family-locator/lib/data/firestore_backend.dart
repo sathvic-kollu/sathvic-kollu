@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/models.dart';
@@ -19,12 +20,37 @@ import 'backend.dart';
 ///   families/{f}/children/{uid}/history/*  LocationFix + day
 ///   families/{f}/zones|alerts|commands|views|tasks/*
 class FirestoreBackend implements FamilyBackend {
-  FirestoreBackend({FirebaseFirestore? db, FirebaseAuth? auth})
-      : _db = db ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  FirestoreBackend({
+    FirebaseFirestore? db,
+    FirebaseAuth? auth,
+    Future<String?> Function()? timeZone,
+    this.registerPush = true,
+  })  : _db = db ?? FirebaseFirestore.instance,
+        _auth = auth ?? FirebaseAuth.instance,
+        _timeZone = timeZone ?? _deviceTimeZone;
 
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
+  final Future<String?> Function() _timeZone;
+
+  /// Off in tests, where there is no messaging plugin.
+  final bool registerPush;
+
+  static Future<String?> _deviceTimeZone() async {
+    try {
+      return (await FlutterTimezone.getLocalTimezone()).identifier;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Lets the server evaluate quiet hours and place schedules in the
+  /// family's local time. The IANA name follows daylight saving; the offset
+  /// is a fallback for devices that can't report a zone name.
+  Future<Map<String, Object?>> _zoneFields() async => {
+        'tz': ?await _timeZone(),
+        'tzOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes,
+      };
   static const _sessionKey = 'session';
 
   @override
@@ -48,6 +74,7 @@ class FirestoreBackend implements FamilyBackend {
   }
 
   Future<void> _registerPushToken(Session s) async {
+    if (!registerPush) return;
     try {
       final messaging = FirebaseMessaging.instance;
       await messaging.requestPermission();
@@ -80,20 +107,21 @@ class FirestoreBackend implements FamilyBackend {
       'createdAt': FieldValue.serverTimestamp(),
       'createdBy': uid,
       'settings': const FamilySettings().toMap(),
-      'tzOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes,
+      ...await _zoneFields(),
     });
     await family.collection('members').doc(uid).set({'role': 'parent', 'name': parentName});
     return _save(Session(familyId: family.id, memberId: uid, role: Role.parent, displayName: parentName));
   }
 
   @override
-  Future<String> createInviteCode(String familyId) async {
+  Future<String> createInviteCode(String familyId, {required Role role}) async {
     await _uid();
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I confusion
     final r = math.Random.secure();
     final code = List.generate(6, (_) => chars[r.nextInt(chars.length)]).join();
     await _db.collection('invites').doc(code).set({
       'familyId': familyId,
+      'role': role.name,
       'expiresAt': DateTime.now().add(const Duration(hours: 24)).millisecondsSinceEpoch,
       'createdBy': _auth.currentUser!.uid,
     });
@@ -111,6 +139,11 @@ class FirestoreBackend implements FamilyBackend {
       throw BackendException('That code has expired. Ask for a new one.');
     }
     final familyId = data['familyId'] as String;
+    if (data['role'] != role.name) {
+      throw BackendException(data['role'] == 'child'
+          ? "This code is for a child's phone. Choose \"I'm the child\"."
+          : 'This code is for a parent or guardian. Choose "I\'m a guardian".');
+    }
     await _col(familyId, 'members').doc(uid).set({'role': role.name, 'name': name, 'invite': normalized});
     if (role == Role.child) {
       await _col(familyId, 'children').doc(uid).set(ChildProfile(id: uid, name: name).toMap());
@@ -174,11 +207,10 @@ class FirestoreBackend implements FamilyBackend {
 
   @override
   Future<void> saveSettings(String familyId, FamilySettings settings) =>
-      _family(familyId).set({
-        'settings': settings.toMap(),
-        // Lets the server evaluate quiet hours and place schedules in local time.
-        'tzOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes,
-      }, SetOptions(merge: true));
+      _zoneFields().then((zone) => _family(familyId).set({
+            'settings': settings.toMap(),
+            ...zone,
+          }, SetOptions(merge: true)));
 
   @override
   Stream<List<AlertEvent>> watchAlerts(String familyId, {int limit = 100}) => _col(familyId, 'alerts')

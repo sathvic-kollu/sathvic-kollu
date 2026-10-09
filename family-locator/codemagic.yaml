@@ -1,0 +1,92 @@
+# Cloud builds on Codemagic (https://codemagic.io): build and upload both
+# apps without a Mac. One-time setup is in STORE_SUBMISSION.md, "No Mac?".
+#
+# Secrets live in a Codemagic environment-variable group named
+# "family_locator" (Team settings → Global variables):
+#   FIREBASE_OPTIONS_B64   base64 of lib/firebase_options.dart (from flutterfire configure)
+#   RELEASE_JSON_B64       base64 of config/release.json
+#   GCLOUD_SERVICE_ACCOUNT_CREDENTIALS   Play Console service-account JSON (Android upload)
+# Create the base64 values with:  base64 -w0 lib/firebase_options.dart   (macOS: base64 -i FILE)
+
+definitions:
+  restore_secrets: &restore_secrets
+    name: Restore release config
+    script: |
+      echo "$FIREBASE_OPTIONS_B64" | base64 --decode > lib/firebase_options.dart
+      echo "$RELEASE_JSON_B64" | base64 --decode > config/release.json
+  checks: &checks
+    name: Analyze and test
+    script: |
+      flutter pub get
+      flutter analyze
+      flutter test
+
+workflows:
+  android-release:
+    name: Android → Play internal testing
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      groups:
+        - family_locator
+      android_signing:
+        - family_locator_upload   # upload keystore added under Code signing identities
+    scripts:
+      - *restore_secrets
+      - *checks
+      - name: Signing config
+        script: |
+          cat > android/key.properties <<EOF
+          storeFile=$CM_KEYSTORE_PATH
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          keyPassword=$CM_KEY_PASSWORD
+          EOF
+      - name: Build app bundle
+        script: |
+          flutter build appbundle --release \
+            --build-number=$((PROJECT_BUILD_NUMBER + 100)) \
+            --dart-define-from-file=config/release.json
+    artifacts:
+      - build/app/outputs/bundle/release/*.aab
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: true
+
+  ios-release:
+    name: iOS → TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    integrations:
+      app_store_connect: family_locator_asc   # App Store Connect API key added in Team integrations
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - family_locator
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.techtenstein.familylocator
+    scripts:
+      - *restore_secrets
+      - *checks
+      - name: Code signing
+        script: xcode-project use-profiles
+      - name: Pods
+        script: cd ios && pod install --repo-update
+      - name: Build IPA
+        script: |
+          flutter build ipa --release \
+            --build-number=$((PROJECT_BUILD_NUMBER + 100)) \
+            --dart-define-from-file=config/release.json \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

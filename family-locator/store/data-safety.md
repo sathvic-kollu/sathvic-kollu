@@ -1,7 +1,8 @@
 # Privacy forms: ready-to-copy answers
 
 These match what the code does (see `lib/data/firestore_backend.dart`, `firebase/functions/src/index.ts`).
-If you add analytics or crash reporting later, update both forms.
+Crash reporting (Firebase Crashlytics) is included and covered below. If you add analytics later,
+update both forms.
 
 ## Google Play: Data safety
 
@@ -17,7 +18,9 @@ If you add analytics or crash reporting later, update both forms.
 | Personal info → User IDs | Yes | No | Required | App functionality, Account management |
 | Messages → Other in-app messages (check-ins) | Yes | No | Optional | App functionality |
 | App activity → Other user-generated content (places, tasks) | Yes | No | Optional | App functionality |
-| Device or other IDs (push token) | Yes | No | Required | App functionality |
+| Device or other IDs (push token, Crashlytics installation ID) | Yes | No | Required | App functionality, Analytics |
+| App info and performance → Crash logs | Yes | No | Required | Analytics (stability) |
+| App info and performance → Diagnostics | Yes | No | Required | Analytics (stability) |
 
 \* "Shared" in Play's sense means transferred to a third party. Data shown to other members of the
 user's own family, and data processed by Firebase as your service provider, does **not** count as sharing.
@@ -34,6 +37,7 @@ Ephemeral processing: No. Data is stored.
 - Identifiers: User ID, Device ID (push token)
 - User Content: Other User Content (check-ins, places, tasks)
 
-**Data not linked to you:** None.
+**Data not linked to you** (for *App Functionality* and *Analytics*):
+- Diagnostics: Crash Data
 
 This matches `ios/Runner/PrivacyInfo.xcprivacy`.

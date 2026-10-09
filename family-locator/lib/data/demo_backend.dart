@@ -75,7 +75,7 @@ class DemoBackend implements FamilyBackend {
   }
 
   @override
-  Future<String> createInviteCode(String familyId) async {
+  Future<String> createInviteCode(String familyId, {required Role role}) async {
     final r = math.Random();
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     return List.generate(6, (_) => chars[r.nextInt(chars.length)]).join();

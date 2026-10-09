@@ -26,9 +26,30 @@ export interface Alert {
 
 export const URGENT = new Set(["sos", "trackingOff", "permissionLost"]);
 
+/**
+ * A family's time zone: an IANA name ("Europe/London", DST-correct) or,
+ * for families created by older app versions, a fixed UTC offset in minutes.
+ */
+export type Zone = string | number;
+
 /** Wall-clock time in the family's zone, as a Date whose UTC fields are local. */
-export function localClock(epochMs: number, tzOffsetMinutes: number): Date {
-  return new Date(epochMs + tzOffsetMinutes * 60_000);
+export function localClock(epochMs: number, zone: Zone): Date {
+  if (typeof zone === "number") return new Date(epochMs + zone * 60_000);
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: zone, hourCycle: "h23",
+      year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric",
+    }).formatToParts(new Date(epochMs));
+    const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+    return new Date(Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute")));
+  } catch {
+    return new Date(epochMs); // Unknown zone name: fall back to UTC.
+  }
+}
+
+/** The zone to use for a family document. */
+export function familyZone(family: {tz?: string; tzOffsetMinutes?: number}): Zone {
+  return family.tz ?? family.tzOffsetMinutes ?? 0;
 }
 
 function isoWeekday(d: Date): number {
@@ -51,11 +72,11 @@ export type Delivery = "now" | "digest" | "feedOnly";
 export function decideDelivery(
   alert: Alert,
   settings: Settings,
-  tzOffsetMinutes: number,
+  zone: Zone,
   zoneWindow?: TimeWindow | null,
 ): Delivery {
   if (URGENT.has(alert.type)) return "now";
-  const local = localClock(alert.at, tzOffsetMinutes);
+  const local = localClock(alert.at, zone);
   if ((alert.type === "arrived" || alert.type === "left") && zoneWindow && !windowContains(zoneWindow, local)) {
     return "feedOnly";
   }
@@ -85,10 +106,10 @@ export function isStale(child: ChildDoc, now: number, staleAfterMinutes: number)
   return now - seen > staleAfterMinutes * 60_000;
 }
 
-export function digestSummary(held: Alert[], tzOffsetMinutes: number): string {
+export function digestSummary(held: Alert[], zone: Zone): string {
   const sorted = [...held].sort((a, b) => a.at - b.at);
   const fmt = (ms: number) => {
-    const d = localClock(ms, tzOffsetMinutes);
+    const d = localClock(ms, zone);
     return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
   };
   const lines = sorted.slice(0, 6).map((a) => `${fmt(a.at)} ${a.message}`);

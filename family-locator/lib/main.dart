@@ -1,5 +1,10 @@
+import 'dart:ui';
+
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -35,6 +40,18 @@ Future<void> main() async {
   final FamilyBackend backend;
   if (backendKind == 'firebase') {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    // Proves requests come from the genuine app (enforce it in the Firebase
+    // console once the release build is live). Debug builds use debug tokens.
+    await FirebaseAppCheck.instance.activate(
+      providerAndroid: kDebugMode ? const AndroidDebugProvider() : const AndroidPlayIntegrityProvider(),
+      providerApple: kDebugMode ? const AppleDebugProvider() : const AppleAppAttestWithDeviceCheckFallbackProvider(),
+    );
+    // Crash reports (no location or names) so failures in the field are seen.
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
     FirebaseMessaging.onBackgroundMessage(_onBackgroundPush);
     backend = FirestoreBackend();
   } else {

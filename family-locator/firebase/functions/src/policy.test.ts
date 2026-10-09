@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {decideDelivery, digestSummary, isStale, windowContains} from "./policy";
+import {decideDelivery, digestSummary, isStale, localClock, windowContains} from "./policy";
 
 // 2026-10-05 is a Monday. Build UTC instants for local times at UTC+2.
 const tz = 120;
@@ -37,4 +37,15 @@ test("stale detection ignores paused and never-seen phones", () => {
 test("digest summary", () => {
   const s = digestSummary([{id: "1", childId: "c", type: "lowBattery", at: at(5, 23, 5), message: "Mia's phone is at 14%"}], tz);
   assert.equal(s, "1 update during quiet hours:\n23:05 Mia's phone is at 14%");
+});
+
+test("IANA zones follow daylight saving", () => {
+  // London: 12:00 UTC is 13:00 in summer (BST) and 12:00 in winter (GMT).
+  assert.equal(localClock(Date.UTC(2026, 6, 1, 12), "Europe/London").getUTCHours(), 13);
+  assert.equal(localClock(Date.UTC(2026, 11, 1, 12), "Europe/London").getUTCHours(), 12);
+  // Kolkata is +05:30 all year; 23:00 UTC Sunday is Monday 04:30 locally.
+  const k = localClock(Date.UTC(2026, 9, 4, 23), "Asia/Kolkata");
+  assert.deepEqual([k.getUTCDay(), k.getUTCHours(), k.getUTCMinutes()], [1, 4, 30]);
+  // Unknown names fall back to UTC instead of throwing.
+  assert.equal(localClock(Date.UTC(2026, 0, 1, 9), "Not/AZone").getUTCHours(), 9);
 });

@@ -10,17 +10,20 @@ service cloud.firestore {
     function isMember(f) { return signedIn() && exists(memberDoc(f)); }
     function isParent(f) { return isMember(f) && get(memberDoc(f)).data.role == 'parent'; }
     function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function isChild(f) { return isMember(f) && get(memberDoc(f)).data.role == 'child'; }
+    function invite(code) { return get(/databases/$(database)/documents/invites/$(code)).data; }
     function onlyChanges(keys) {
       return request.resource.data.diff(resource == null ? {} : resource.data).affectedKeys().hasOnly(keys);
     }
 
-    // Codes are unguessable-ish (32^6) and expire in 24 h; they can be read
-    // by exact code but never listed.
+    // Codes are unguessable-ish (32^6), bound to a role and expire in 24 h.
+    // They can be read by exact code but never listed.
     match /invites/{code} {
       allow get: if signedIn();
       allow list: if false;
       allow create: if isParent(request.resource.data.familyId)
         && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.role in ['parent', 'child']
         && request.resource.data.expiresAt <= request.time.toMillis() + 25 * 60 * 60 * 1000;
       allow delete: if signedIn() && isParent(resource.data.familyId);
     }
@@ -28,24 +31,28 @@ service cloud.firestore {
     match /families/{f} {
       allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid;
       allow read: if isMember(f);
-      allow update: if isParent(f) && onlyChanges(['settings', 'tzOffsetMinutes']);
+      allow update: if isParent(f) && onlyChanges(['settings', 'tz', 'tzOffsetMinutes']);
 
       match /members/{uid} {
-        allow read: if isMember(f);
-        // First member is the creator; everyone else needs a live invite.
+        // Members hold push tokens: parents see everyone, others only themselves.
+        allow read: if isParent(f) || isSelf(uid);
+        // First member is the creator; everyone else needs a live invite for
+        // the role they are joining as.
         allow create: if isSelf(uid) && (
           (get(/databases/$(database)/documents/families/$(f)).data.createdBy == uid
             && request.resource.data.role == 'parent')
           || (request.resource.data.invite is string
-            && get(/databases/$(database)/documents/invites/$(request.resource.data.invite)).data.familyId == f
-            && get(/databases/$(database)/documents/invites/$(request.resource.data.invite)).data.expiresAt > request.time.toMillis()));
+            && invite(request.resource.data.invite).familyId == f
+            && invite(request.resource.data.invite).role == request.resource.data.role
+            && invite(request.resource.data.invite).expiresAt > request.time.toMillis()));
         allow update: if isSelf(uid) && onlyChanges(['fcmTokens', 'name']);
         allow delete: if isSelf(uid) || isParent(f);
       }
 
+      // Siblings can't see each other: a child reads only their own profile.
       match /children/{c} {
-        allow read: if isMember(f);
-        allow create: if isSelf(c) && isMember(f);
+        allow read: if isParent(f) || isSelf(c);
+        allow create: if isSelf(c) && isChild(f);
         allow update: if isParent(f)
           || (isSelf(c) && onlyChanges(['lastFix', 'zoneId', 'health', 'pausedUntil', 'pauseReason', 'sosSince', 'name', 'emoji']));
         allow delete: if isParent(f);
@@ -63,7 +70,7 @@ service cloud.firestore {
       }
 
       match /alerts/{id} {
-        allow read: if isMember(f);
+        allow read: if isParent(f) || (isMember(f) && resource.data.childId == request.auth.uid);
         allow create: if isParent(f) || (isMember(f) && request.resource.data.childId == request.auth.uid);
         allow delete: if isParent(f);
       }

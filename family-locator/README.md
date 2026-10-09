@@ -55,12 +55,16 @@ lib/
 firebase/
   firestore.rules          family-scoped access; children can't change their own privacy mode
   firestore.indexes.json
-  functions/               push for alerts and ring, quiet-hours digest, stale-phone detector, history pruning
+  functions/               push for alerts and ring, quiet-hours digest, stale-phone detector, history pruning,
+                           account deletion (+ emulator integration tests)
+  rules-tests/             security-rule tests on the Firestore emulator
+  hosting/                 privacy / terms / delete-account pages served from store/*.md
 test/                      core logic + app/controller tests
 store/                     listing copy, privacy policy, terms, deletion page, Data safety answers,
                            permission declarations, review notes, screenshots, icon, feature graphic
 config/release.example.json  release settings (URLs, map tiles) passed via --dart-define-from-file
 scripts/build_release.sh   checks for unfilled placeholders, then builds the .aab / .ipa
+codemagic.yaml             cloud builds for Android and iOS (no Mac needed), uploading to Play and TestFlight
 ```
 
 **Shipping to the stores:** follow [STORE_SUBMISSION.md](STORE_SUBMISSION.md). It lists every remaining
@@ -83,9 +87,8 @@ Notes:
   `TILE_URL` from `config/release.json` (MapTiler, Stadia, Mapbox).
 - **Store policies**: the prominent disclosure, account deletion, `isMonitoringTool` flag, privacy manifest
   and entitlements are already in place. The console forms are pre-answered in `store/`.
-- **Time zones**: quiet hours and place schedules are evaluated on the server using the parent's UTC offset at
-  the time settings were last saved. Families spanning time zones, or a DST change, need a re-save. Storing an
-  IANA zone (via `flutter_timezone`) is the proper fix.
+- **Time zones**: quiet hours and place schedules are evaluated on the server in the family's IANA time zone
+  (from the parent's phone when the family is created or settings are saved), so daylight saving is handled.
 - **Children's data**: COPPA (US), GDPR-K (EU) and similar rules apply. A privacy-policy template is in
   `store/privacy-policy.md`. Have it reviewed for your markets.
 
@@ -93,7 +96,9 @@ Notes:
 
 ```bash
 flutter analyze
-flutter test                                 # core logic, app flow, child controller
+flutter test                                 # core logic, app flow, child controller, Firebase backend
 cd firebase/functions && npm install && npm test   # server policy tests
+npm run test:emulator                        # Cloud Functions against Firestore/Auth emulators
+cd ../rules-tests && npm install && npm test # security rules against the Firestore emulator
 flutter build apk --debug
 ```

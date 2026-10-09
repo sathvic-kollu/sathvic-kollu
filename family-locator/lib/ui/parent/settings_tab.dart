@@ -202,9 +202,30 @@ class SettingsTab extends StatelessWidget {
 
   Future<void> _invite(BuildContext context, ParentData d) async {
     final messenger = ScaffoldMessenger.of(context);
+    final role = await showModalBottomSheet<Role>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const ListTile(title: Text('Who are you adding?')),
+          ListTile(
+            leading: const Icon(Icons.child_care),
+            title: const Text('A child'),
+            subtitle: const Text('Their phone shares location with the family'),
+            onTap: () => Navigator.pop(context, Role.child),
+          ),
+          ListTile(
+            leading: const Icon(Icons.person),
+            title: const Text('Another parent or guardian'),
+            subtitle: const Text('They see the kids and get alerts, like you'),
+            onTap: () => Navigator.pop(context, Role.parent),
+          ),
+        ]),
+      ),
+    );
+    if (role == null) return;
     String code;
     try {
-      code = await d.backend.createInviteCode(d.familyId);
+      code = await d.backend.createInviteCode(d.familyId, role: role);
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('$e')));
       return;
@@ -215,7 +236,8 @@ class SettingsTab extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Text('Family code'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Install Family Locator on their phone, tap "I have a family code" and enter:'),
+          Text('Install Family Locator on their phone, tap "I have a family code", choose '
+              '${role == Role.child ? '"I\'m the child"' : '"I\'m a guardian"'} and enter:'),
           const SizedBox(height: 16),
           SelectableText(code,
               style: Theme.of(context).textTheme.displaySmall?.copyWith(letterSpacing: 6, fontWeight: FontWeight.bold)),

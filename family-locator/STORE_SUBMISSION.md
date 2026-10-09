@@ -23,31 +23,39 @@ screenshots, icon and feature graphic.
 ## 2. Firebase backend (≈30 min)
 
 - [ ] Create a Firebase project at https://console.firebase.google.com (choose a region, then record it in the privacy policy).
-- [ ] Enable **Authentication → Anonymous**, **Firestore** (production mode), **Cloud Messaging**.
+- [ ] Enable **Authentication → Anonymous**, **Firestore** (production mode), **Cloud Messaging**,
+      **Crashlytics** and **Hosting**.
 - [ ] Upgrade to the **Blaze** plan (Cloud Functions need it; the free tier covers a small user base).
 - [ ] `dart pub global activate flutterfire_cli && flutterfire configure`, choosing the Android + iOS apps
       with your package/bundle ID. This **replaces `lib/firebase_options.dart`**. Commit it.
 - [ ] iOS push: Apple Developer → Keys → create an **APNs key** (.p8), then upload it in
       Firebase → Project settings → Cloud Messaging → Apple app.
-- [ ] Deploy: `cd firebase && firebase use <project-id> && npm --prefix functions install && firebase deploy`.
-      This deploys rules, indexes and the functions `onAlertCreated`, `onCommandCreated`, `checkStalePhones`,
-      `pruneHistory` and `deleteMyData`.
+- [ ] **App Check** → register both apps: Android with **Play Integrity** (paste the *app signing key*
+      SHA-256 from Play Console → Setup → App signing), iOS with **App Attest**. Leave enforcement **off**
+      for now (step 10).
+- [ ] Deploy (after step 4, because the deploy refuses to publish legal pages that still have placeholders):
+      `cd firebase && firebase use <project-id> && npm --prefix functions install && firebase deploy`.
+      This deploys rules, indexes, the functions `onAlertCreated`, `onCommandCreated`, `checkStalePhones`,
+      `pruneHistory` and `deleteMyData`, and your legal pages (step 4).
 
 ## 3. Map tiles (10 min)
 
 - [ ] Create a free key at a tile provider (e.g. https://cloud.maptiler.com, Stadia, Mapbox). The public
       OpenStreetMap server is not allowed for production apps.
 
-## 4. Legal pages (≈30 min)
+## 4. Legal pages (≈20 min)
 
 - [ ] Fill every `[BRACKETED]` value in `store/privacy-policy.md`, `store/terms.md`, `store/delete-account.md`.
-- [ ] Host all three publicly (GitHub Pages / Notion / your site) and note the three URLs.
+- [ ] Nothing else to host: `firebase deploy` (step 2) publishes them on Firebase Hosting at
+      `https://<project-id>.web.app/privacy`, `/terms` and `/delete-account`. A custom domain can be added in
+      Firebase → Hosting.
 - [ ] Set up a monitored support inbox.
 
 ## 5. Release config (2 min)
 
 - [ ] `cp config/release.example.json config/release.json` (git-ignored) and fill:
-      `PRIVACY_URL`, `TERMS_URL`, `SUPPORT_EMAIL`, `TILE_URL` (with your key), `TILE_ATTRIBUTION`.
+      `PRIVACY_URL` (`https://<project-id>.web.app/privacy`), `TERMS_URL` (`…/terms`), `SUPPORT_EMAIL`,
+      `TILE_URL` (with your key), `TILE_ATTRIBUTION`.
 
 ## 6. Android signing (5 min)
 
@@ -62,6 +70,16 @@ screenshots, icon and feature graphic.
       Signing & Capabilities, confirm **Push Notifications**, **Background Modes (Location, Remote notifications)**
       and **Time Sensitive Notifications** are listed (already in `Runner.entitlements` / `Info.plist`). Then run
       `scripts/build_release.sh ios`.
+- [ ] **No Mac?** Use Codemagic (`codemagic.yaml` is ready). It builds both apps in the cloud and uploads
+      them to Play internal testing and TestFlight:
+  1. Sign in at https://codemagic.io with GitHub and add this repository.
+  2. Team settings → Code signing identities: upload your Android upload keystore as `family_locator_upload`.
+  3. Team integrations → App Store Connect: add an API key (App Store Connect → Users and Access → Integrations)
+     named `family_locator_asc`. Codemagic then creates the iOS certificates and profiles for you.
+  4. Global variables, group `family_locator`: `FIREBASE_OPTIONS_B64`, `RELEASE_JSON_B64`, and
+     `GCLOUD_SERVICE_ACCOUNT_CREDENTIALS` (a Play Console service account with release permission).
+  5. Start the `android-release` and `ios-release` workflows. The first Play upload must be done by hand
+     in the console; after that Codemagic can upload.
 - [ ] Smoke-test the release build on two real phones (parent + child): join with a code, walk out of a
       place, press SOS, ring, delete account.
 
@@ -98,6 +116,12 @@ screenshots, icon and feature graphic.
 - [ ] Optional: request the Critical Alerts entitlement (link in `store/declarations.md`).
 - [ ] Submit for review.
 
+## 10. After the first approved release
+
+- [ ] Firebase → App Check → **Enforce** for Firestore, Cloud Functions and Authentication once the Crashlytics
+      dashboard shows the store build in use. Older or modified builds are then refused.
+- [ ] Watch Firebase → Crashlytics for the first week.
+
 ---
 
 ## Already done in code (no action needed)
@@ -112,12 +136,26 @@ screenshots, icon and feature graphic.
 - iOS: location usage strings, background modes, push + time-sensitive entitlements, privacy manifest
   (`PrivacyInfo.xcprivacy`), `ITSAppUsesNonExemptEncryption = NO`, iOS 15 minimum.
 - 30-day automatic deletion of location history, alerts and view logs (`pruneHistory`).
+- Security rules: role-bound invite codes, siblings can't see each other, children can't change their own
+  privacy mode, points or places. Tested on the Firestore emulator (`firebase/rules-tests`, 19 tests).
+- Cloud Functions tested on the emulators (`npm run test:emulator` in `firebase/functions`, 11 tests).
+- Quiet hours and place schedules use the family's IANA time zone (handles daylight saving).
+- A child phone that goes silent gets a "tap to turn sharing back on" push as well as alerting the parents.
+- Crashlytics crash reporting and App Check (Play Integrity / App Attest) wired in. The privacy forms include crash data.
+- Legal pages served by Firebase Hosting from `store/*.md`, with a deploy guard against unfilled placeholders.
 - App icon (all sizes, adaptive on Android), store screenshots and feature graphic. Swap in designer
   versions any time: replace `assets/icon/icon.png` + `icon_foreground.png`, then run `dart run flutter_launcher_icons`.
 
 ## Recommended before or soon after launch (not blockers)
 
-- Crash reporting (Firebase Crashlytics). If you add it, update `store/data-safety.md` (Crash logs, Diagnostics).
 - Translate the listing and in-app strings for your main markets.
-- Store the family's IANA time zone instead of a UTC offset (see README → Time zones).
-- Firebase App Check to block API abuse.
+- A designer-made icon and screenshots with captions (current ones are clean but plain).
+
+## Verifying changes yourself
+
+```bash
+flutter analyze && flutter test                                  # app: 37 tests
+cd firebase/functions && npm install && npm test                 # time-zone and alert policy
+npm run test:emulator                                            # Cloud Functions on emulators (needs Java)
+cd ../rules-tests && npm install && npm test                     # security rules on the emulator
+```

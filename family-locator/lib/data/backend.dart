@@ -20,8 +20,9 @@ abstract class FamilyBackend {
   Future<Session?> restoreSession();
   Future<Session> createFamily({required String parentName});
 
-  /// Invite codes are short, single-family and expire after 24 hours.
-  Future<String> createInviteCode(String familyId);
+  /// Invite codes are short, single-family, bound to the [role] the new
+  /// member joins as, and expire after 24 hours.
+  Future<String> createInviteCode(String familyId, {required Role role});
   Future<Session> joinWithCode({
     required String code,
     required String name,
