@@ -1,0 +1,8 @@
+{
+  "BACKEND": "firebase",
+  "PRIVACY_URL": "https://YOUR-DOMAIN/family-locator/privacy",
+  "TERMS_URL": "https://YOUR-DOMAIN/family-locator/terms",
+  "SUPPORT_EMAIL": "support@YOUR-DOMAIN",
+  "TILE_URL": "https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=YOUR_MAPTILER_KEY",
+  "TILE_ATTRIBUTION": "MapTiler © OpenStreetMap contributors"
+}

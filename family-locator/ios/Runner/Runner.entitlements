@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Push notifications (alerts, SOS, ring). Xcode switches this to
+	     "production" when you archive for the App Store. -->
+	<key>aps-environment</key>
+	<string>development</string>
+	<!-- SOS and "location stopped" alerts break through Focus modes. -->
+	<key>com.apple.developer.usernotifications.time-sensitive</key>
+	<true/>
+</dict>
+</plist>

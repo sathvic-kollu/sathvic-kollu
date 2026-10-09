@@ -1,0 +1,7 @@
+# Copy to android/key.properties (git-ignored) and fill in.
+# Create the upload key once with:
+#   keytool -genkey -v -keystore ~/family-locator-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=/absolute/path/to/family-locator-upload.jks

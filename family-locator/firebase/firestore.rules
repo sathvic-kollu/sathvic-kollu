@@ -1,0 +1,91 @@
+rules_version = '2';
+
+// Every family's data is readable only by its own members. Children can
+// only write their own presence/health and can't change what they share
+// (privacy mode is the parents' call, made in the open).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function memberDoc(f) { return /databases/$(database)/documents/families/$(f)/members/$(request.auth.uid); }
+    function isMember(f) { return signedIn() && exists(memberDoc(f)); }
+    function isParent(f) { return isMember(f) && get(memberDoc(f)).data.role == 'parent'; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function onlyChanges(keys) {
+      return request.resource.data.diff(resource == null ? {} : resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // Codes are unguessable-ish (32^6) and expire in 24 h; they can be read
+    // by exact code but never listed.
+    match /invites/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if isParent(request.resource.data.familyId)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.expiresAt <= request.time.toMillis() + 25 * 60 * 60 * 1000;
+      allow delete: if signedIn() && isParent(resource.data.familyId);
+    }
+
+    match /families/{f} {
+      allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid;
+      allow read: if isMember(f);
+      allow update: if isParent(f) && onlyChanges(['settings', 'tzOffsetMinutes']);
+
+      match /members/{uid} {
+        allow read: if isMember(f);
+        // First member is the creator; everyone else needs a live invite.
+        allow create: if isSelf(uid) && (
+          (get(/databases/$(database)/documents/families/$(f)).data.createdBy == uid
+            && request.resource.data.role == 'parent')
+          || (request.resource.data.invite is string
+            && get(/databases/$(database)/documents/invites/$(request.resource.data.invite)).data.familyId == f
+            && get(/databases/$(database)/documents/invites/$(request.resource.data.invite)).data.expiresAt > request.time.toMillis()));
+        allow update: if isSelf(uid) && onlyChanges(['fcmTokens', 'name']);
+        allow delete: if isSelf(uid) || isParent(f);
+      }
+
+      match /children/{c} {
+        allow read: if isMember(f);
+        allow create: if isSelf(c) && isMember(f);
+        allow update: if isParent(f)
+          || (isSelf(c) && onlyChanges(['lastFix', 'zoneId', 'health', 'pausedUntil', 'pauseReason', 'sosSince', 'name', 'emoji']));
+        allow delete: if isParent(f);
+
+        match /history/{id} {
+          allow read: if isParent(f) || isSelf(c);
+          allow create: if isSelf(c);
+          allow delete: if isParent(f);
+        }
+      }
+
+      match /zones/{id} {
+        allow read: if isMember(f);
+        allow write: if isParent(f);
+      }
+
+      match /alerts/{id} {
+        allow read: if isMember(f);
+        allow create: if isParent(f) || (isMember(f) && request.resource.data.childId == request.auth.uid);
+        allow delete: if isParent(f);
+      }
+
+      match /commands/{id} {
+        allow read: if isParent(f) || (isMember(f) && resource.data.childId == request.auth.uid);
+        allow create: if isParent(f);
+        allow delete: if isParent(f) || (isMember(f) && resource.data.childId == request.auth.uid);
+      }
+
+      // Children read their own view log; parents can't delete it.
+      match /views/{id} {
+        allow read: if isParent(f) || (isMember(f) && resource.data.childId == request.auth.uid);
+        allow create: if isParent(f) && request.resource.data.at is number;
+      }
+
+      match /tasks/{id} {
+        allow read: if isMember(f);
+        allow write: if isParent(f);
+        allow update: if isMember(f) && resource.data.childId == request.auth.uid
+          && onlyChanges(['status']) && request.resource.data.status == 'done';
+      }
+    }
+  }
+}
