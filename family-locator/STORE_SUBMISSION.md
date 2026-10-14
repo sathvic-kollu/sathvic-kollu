@@ -143,6 +143,10 @@ screenshots, icon and feature graphic.
 - A child phone that goes silent gets a "tap to turn sharing back on" push as well as alerting the parents.
 - Crashlytics crash reporting and App Check (Play Integrity / App Attest) wired in. The privacy forms include crash data.
 - Legal pages served by Firebase Hosting from `store/*.md`, with a deploy guard against unfilled placeholders.
+- Release manifest audited (REA + apktool on the release APK): 13 permissions, none on Play's restricted list,
+  monitoring flag and location foreground service present, not debuggable. Backups and device transfer are
+  off so a child's session can't be copied off the phone. `scripts/check_manifest.py` re-checks every release
+  build (local and Codemagic) so a plugin update can't silently add a restricted permission.
 - App icon (all sizes, adaptive on Android), store screenshots and feature graphic. Swap in designer
   versions any time: replace `assets/icon/icon.png` + `icon_foreground.png`, then run `dart run flutter_launcher_icons`.
 

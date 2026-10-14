@@ -12,7 +12,10 @@
     <application
         android:label="Family Locator"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <!-- Required by Google Play's Stalkerware & Monitoring policy:
              declares this as a parental (child) monitoring tool. -->
         <meta-data

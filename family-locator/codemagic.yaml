@@ -48,6 +48,8 @@ workflows:
           flutter build appbundle --release \
             --build-number=$((PROJECT_BUILD_NUMBER + 100)) \
             --dart-define-from-file=config/release.json
+      - name: Manifest policy check
+        script: python3 scripts/check_manifest.py
     artifacts:
       - build/app/outputs/bundle/release/*.aab
     publishing:

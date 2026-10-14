@@ -17,6 +17,7 @@ case "${1:-all}" in
   android|all)
     [[ -f android/key.properties ]] || { echo "Missing android/key.properties (see key.properties.example)"; exit 1; }
     flutter build appbundle --release --dart-define-from-file=config/release.json
+    python3 scripts/check_manifest.py
     echo "Upload: build/app/outputs/bundle/release/app-release.aab"
     ;;&
   ios|all)

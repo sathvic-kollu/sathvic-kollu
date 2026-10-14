@@ -27,6 +27,10 @@ user's own family, and data processed by Firebase as your service provider, does
 
 Ephemeral processing: No. Data is stored.
 
+**Advertising ID** (Play Console → App content → Advertising ID): **No**, the app doesn't use it.
+The release manifest has no `AD_ID` permission; `scripts/check_manifest.py` fails the build if a
+plugin ever adds one.
+
 ## Apple: App Privacy ("nutrition label")
 
 **Data used to track you:** None.
